@@ -271,9 +271,16 @@ const handleExportToExcel = async () => {
 
   return (
     <div className="container">
+       <h1 style={{ fontSize: '60px', fontWeight: 'bold', textAlign: 'left',marginLeft:'20px' }} >Unified Portal Onboarding</h1>
+        <img
+    src="/src\assets\brillio.png" // Adjust the path based on where your image is located
+    alt="Company Logo"
+    className="img-fluid mb-4" // Optional: Use Bootstrap's class to make the image responsive
+    style={{ maxWidth: '35px', display: 'block',float: 'right' }} // Optional custom styling
+  />
       <div className="content">
-        <h1>Import and Generate Assessment</h1>
-
+     
+        <h3>Import and Generate Assessment</h3>
         {/* Download Button placed at top-right */}
         <button
           onClick={downloadSampleCsv}
