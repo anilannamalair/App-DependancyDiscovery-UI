@@ -1,8 +1,11 @@
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react-swc';
+
+// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: '0.0.0.0',  // Allow access from external network
-    port: 5173,        // Ensure the correct port is used
+    port: 8085,  // Set the port to 8085
   },
-})
+});
 
