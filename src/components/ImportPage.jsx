@@ -57,7 +57,7 @@ function ImportPage() {
             // Only process rows with repo_url and access_token
             if (repo_url && access_token) {
               try {
-                const response = await fetch(`http://localhost:8080/api/git/clone?repoUrl=${encodeURIComponent(repo_url)}&accessToken=${encodeURIComponent(access_token)}`, {
+                const response = await fetch(`http://localhost:9090/api/git/clone?repoUrl=${encodeURIComponent(repo_url)}&accessToken=${encodeURIComponent(access_token)}`, {
                   method: 'POST',
                 });
 
@@ -238,7 +238,7 @@ const handleExportToExcel = async () => {
       formData.append('file', csvFile);
 
       try {
-        const response = await fetch('http://localhost:8080/api/git/assessment?File', {
+        const response = await fetch('http://localhost:9090/api/git/assessment?File', {
           method: 'POST',
           body: formData,
         });
