@@ -14,6 +14,9 @@ function ImportPage() {
   const [showPopup, setShowPopup] = useState(false); // Track the visibility of the success popup
   const [serviceTableData, setServiceTableData] = useState(null); // Store the data to display in the table
   const [selectedArtifact, setSelectedArtifact] = useState(null); // Line 15
+  const [showFolderStructure, setShowFolderStructure] = useState(false); // To control the folder structure modal visibility
+const [folderStructureData, setFolderStructureData] = useState([]); // To store the repoStructure data
+
   const handleArtifactClick = (artifact) => { // Line 40
     setSelectedArtifact(artifact); // Set the artifact details to display in modal (Line 41)
   };
@@ -37,6 +40,10 @@ function ImportPage() {
   }, [selectedRepo, selectedService, assessmentData]);  // Dependency array to trigger when either repo or service changes
   
   
+  const handleFolderStructureClick = (repoStructure) => {
+    setFolderStructureData(repoStructure); // Set the repoStructure to display in modal
+    setShowFolderStructure(true); // Open the modal
+  };
   
   
   
@@ -142,10 +149,10 @@ function ImportPage() {
   
     // Function to handle nested structures and format them for export
     const formatRepoStructure = (repoStructure) => {
-      if (typeof repoStructure === 'object') {
-        return JSON.stringify(repoStructure, null, 2); // Converts the object to a string representation
+      if (Array.isArray(repoStructure)) {
+        return repoStructure.map(item => [item]); // Format the array of strings for export
       }
-      return repoStructure; // If it's not an object, return the value directly
+      return [[JSON.stringify(repoStructure, null, 2)]]; // If it's an object, stringified it
     };
   
     // Transform the data to get parameters and their values (without headers)
@@ -231,14 +238,23 @@ function ImportPage() {
     ws2['E2'].s = boldStyle; // "Category"
     ws2['F2'].s = boldStyle; // "Artifact Location"
   
+    // Create the worksheet for Repo Structure Data
+    const repoStructureData = formatRepoStructure(selectedServiceData.repoStructure); // Get repo structure data
+    const ws3 = XLSX.utils.aoa_to_sheet([['Repo Structure'], ...repoStructureData]);
+  
+    // Apply bold styles to the repo structure sheet headers
+    ws3['A1'].s = boldStyle; // "Repo Structure"
+  
     // Create the workbook
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws1, 'Assessment Data');
     XLSX.utils.book_append_sheet(wb, ws2, 'Artifact Data');
+    XLSX.utils.book_append_sheet(wb, ws3, 'Repo Structure'); // Append the new sheet
   
     // Trigger the file download
-    XLSX.writeFile(wb, 'assessment_data_with_artifacts.xlsx');
+    XLSX.writeFile(wb, 'assessment_data_with_artifacts_and_repo_structure.xlsx');
   };
+  
   
   
   
@@ -431,57 +447,64 @@ function ImportPage() {
         </tr>
       </thead>
       <tbody>
-        {Object.entries(serviceTableData).map(([key, value], index) => {
-          if (key === 'artifacts') {
-            // If key is 'artifacts', map through the artifacts and make them clickable
-            return (
-              <tr key={index}>
-                <td>{camelCaseToReadable(key)}</td>
-                <td>
-                  {Array.isArray(value) && value.length > 0 ? (
-                    value.map((artifact, artifactIndex) => (
-                      <div key={artifactIndex}>
-                        {/* Make the artifact name clickable */}
-                        <a
-                          href="#"
-                          onClick={(e) => {
-                            e.preventDefault(); // Prevent default link behavior
-                            handleArtifactClick(artifact); // Show artifact details
-                          }}
-                          style={{ cursor: 'pointer', color: 'blue' }}
-                        >
-                          {artifact.artifactName}
-                        </a>
-                      </div>
-                    ))
-                  ) : (
-                    'No Artifacts Found'
-                  )}
-                </td>
-              </tr>
-            );
-          } else {
-            // For other keys, handle them as usual
-            let formattedValue = value;
+      {Object.entries(serviceTableData).map(([key, value], index) => {
+  if (key === 'artifacts') {
+    // Handle artifacts as before
+    return (
+      <tr key={index}>
+        <td>{camelCaseToReadable(key)}</td>
+        <td>
+          {Array.isArray(value) && value.length > 0 ? (
+            value.map((artifact, artifactIndex) => (
+              <div key={artifactIndex}>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleArtifactClick(artifact);
+                  }}
+                  style={{ cursor: 'pointer', color: 'blue' }}
+                >
+                  {artifact.artifactName}
+                </a>
+              </div>
+            ))
+          ) : (
+            'No Artifacts Found'
+          )}
+        </td>
+      </tr>
+    );
+  } else {
+    let formattedValue = value;
 
-            // If the value is an object, convert it to a string (e.g., JSON.stringify)
-            if (typeof value === 'object' && value !== null) {
-              formattedValue = JSON.stringify(value, null, 2); // Beautify object output
-            }
+    if (key === 'repoStructure') {
+      // Instead of showing the repoStructure, show the clickable link
+      formattedValue = (
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            handleFolderStructureClick(value); // Show the folder structure in modal
+          }}
+          style={{ cursor: 'pointer', color: 'blue' }}
+        >
+          Click here to view folder structure
+        </a>
+      );
+    }
 
-            // Format arrays for better display
-            if (Array.isArray(value)) {
-              formattedValue = value.join(', ');
-            }
+    // Other key handling...
+    return (
+      <tr key={index}>
+        <td>{camelCaseToReadable(key)}</td>
+        <td>{formattedValue}</td>
+      </tr>
+    );
+  }
+})}
 
-            return (
-              <tr key={index}>
-                <td>{camelCaseToReadable(key)}</td>
-                <td>{formattedValue}</td>
-              </tr>
-            );
-          }
-        })}
+
       </tbody>
     </table>
   </div>
@@ -573,6 +596,44 @@ function ImportPage() {
           </div>
         </div>
       )}
+      {showFolderStructure && (
+  <div className="modal fade show" tabIndex="-1" aria-labelledby="folderStructureModalLabel" style={{ display: 'block' }}>
+    <div className="modal-dialog modal-dialog-centered">
+      <div className="modal-content">
+        <div className="modal-header">
+          <h5 className="modal-title" id="folderStructureModalLabel">Folder Structure</h5>
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+            onClick={() => setShowFolderStructure(false)} // Close the modal
+          ></button>
+        </div>
+        <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+          <h6>Folder Structure:</h6>
+          {folderStructureData && folderStructureData.length > 0 ? (
+            folderStructureData.map((folder, index) => (
+              <div key={index}>{folder}</div>
+            ))
+          ) : (
+            <p>No folder structure available</p>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowFolderStructure(false)} // Close the modal
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
 
     {/* Full-Screen Loading Overlay */}
 {isLoading && (
