@@ -13,22 +13,33 @@ function ImportPage() {
   const [isLoading, setIsLoading] = useState(false); // Track loading state for the "Generate Assessment Data" process
   const [showPopup, setShowPopup] = useState(false); // Track the visibility of the success popup
   const [serviceTableData, setServiceTableData] = useState(null); // Store the data to display in the table
+  const [selectedArtifact, setSelectedArtifact] = useState(null); // Line 15
+  const handleArtifactClick = (artifact) => { // Line 40
+    setSelectedArtifact(artifact); // Set the artifact details to display in modal (Line 41)
+  };
 
   // This useEffect will update the service table when repo or service selection changes
   useEffect(() => {
     if (selectedRepo && selectedService && assessmentData) {
+      // Get the repo data based on the selected repo
       const repoData = filterRepoData(selectedRepo);
       const serviceData = repoData?.responseDetails[selectedService];
   
+      // If service data exists, update the table; otherwise reset the table data
       if (serviceData) {
-        setServiceTableData(serviceData); // Update the table data
+        setServiceTableData(serviceData);  // Update the table data
       } else {
-        setServiceTableData(null); // Reset table data if no service data is found
+        setServiceTableData(null);  // Reset the table data if no service data is found
       }
     } else {
-      setServiceTableData(null); // Reset table data if repo or service is not selected
+      setServiceTableData(null);  // Reset the table if no repo or service is selected
     }
-  }, [selectedRepo, selectedService, assessmentData]);
+  }, [selectedRepo, selectedService, assessmentData]);  // Dependency array to trigger when either repo or service changes
+  
+  
+  
+  
+  
   
 
   // Handle file input change (CSV file)
@@ -78,6 +89,7 @@ function ImportPage() {
       });
     }
   };
+  
 
   // Function to generate and download the sample CSV input
   const downloadSampleCsv = () => {
@@ -99,91 +111,137 @@ function ImportPage() {
   };
 
   // Handle generating and downloading the Excel file for selected repo data
-const handleExportToExcel = async () => {
-  if (!selectedRepo || !assessmentData) return;
-
-  // Filter the selected repository data from the assessmentData
-  const selectedRepoData = assessmentData.find(repo => repo.repoUrl === selectedRepo);
-
-  if (!selectedRepoData) {
-    console.error('Selected repository not found in the data.');
-    return;
-  }
-
-  // Get the response details for the selected service
-  const selectedServiceData = selectedRepoData.responseDetails[selectedService];
-
-  if (!selectedServiceData) {
-    console.error('Selected service not found in the repository data.');
-    return;
-  }
-
-  // Function to format the parameter names
-  const camelCaseToReadable = (str) => {
-    return str
-      .replace(/([a-z])([A-Z])/g, '$1 $2')
-      .replace(/^./, str[0].toUpperCase());
-  };
-
-  // Bold style definition
-  const boldStyle = { font: { bold: true } };
-
-  // Transform the data to get parameters and their values (without headers)
-  const transformedData = Object.keys(selectedServiceData).map(key => {
-    if (key !== 'serviceName') {
-      let value = selectedServiceData[key];
-
-      // Handle 'cloudInfrastructure' as an array, format accordingly
-      if (key === 'cloudInfrastructure') {
-        value = Array.isArray(value) && value.length > 0 ? value.join(', ') : '[]';
-      }
-
-      // Format boolean values for readability
-      if (typeof value === 'boolean') {
-        value = value ? 'Yes' : 'No';
-      }
-
-      return {
-        Parameter: camelCaseToReadable(key),
-        Value: Array.isArray(value) ? value.join(', ') : value
-      };
+  const handleExportToExcel = async () => {
+    if (!selectedRepo || !assessmentData) return;
+  
+    // Filter the selected repository data from the assessmentData
+    const selectedRepoData = assessmentData.find(repo => repo.repoUrl === selectedRepo);
+  
+    if (!selectedRepoData) {
+      console.error('Selected repository not found in the data.');
+      return;
     }
-    return null;
-  }).filter(item => item !== null);
-
-  // Prepare final data for export
-  const finalData = [
-    ['Application Details'],  // First row: Header for Application Details
-    ['Repo URL', selectedRepo], // Repo URL
-    ['Service Name', selectedService], // Service Name
-
-    [],  // Two-row gap
-
-    ['Generated Assessment Data'], // Header for Assessment Data
-    ['Parameter', 'Value'], // Column headers for the tabular data
-
-    // Tabular data for parameters and their values
-    ...transformedData.map(row => [row.Parameter, row.Value]),
-  ];
-
-  // Create the worksheet
-  const ws = XLSX.utils.aoa_to_sheet(finalData);
-
-  // Apply bold styles to specific headers using xlsx-style
-  ws['A1'].s = boldStyle; // "Application Details"
-  ws['A2'].s = boldStyle; // "Repo URL"
-  ws['A3'].s = boldStyle; // "Service Name"
-  ws['A6'].s = boldStyle; // "Generated Assessment Data"
-  ws['A7'].s = boldStyle; // "Parameter"
-  ws['B7'].s = boldStyle; // "Value"
-
-  // Create the workbook
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Assessment Data');
-
-  // Trigger the file download
-  XLSX.writeFile(wb, 'assessment_data.xlsx');
-};
+  
+    // Get the response details for the selected service
+    const selectedServiceData = selectedRepoData.responseDetails[selectedService];
+  
+    if (!selectedServiceData) {
+      console.error('Selected service not found in the repository data.');
+      return;
+    }
+  
+    // Function to format the parameter names
+    const camelCaseToReadable = (str) => {
+      return str
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/^./, str[0].toUpperCase());
+    };
+  
+    // Bold style definition
+    const boldStyle = { font: { bold: true } };
+  
+    // Function to handle nested structures and format them for export
+    const formatRepoStructure = (repoStructure) => {
+      if (typeof repoStructure === 'object') {
+        return JSON.stringify(repoStructure, null, 2); // Converts the object to a string representation
+      }
+      return repoStructure; // If it's not an object, return the value directly
+    };
+  
+    // Transform the data to get parameters and their values (without headers)
+    const transformedData = Object.keys(selectedServiceData).map(key => {
+      if (key !== 'serviceName' && key !== 'artifacts') {
+        let value = selectedServiceData[key];
+  
+        // Handle 'repoStructure' separately as it's an object
+        if (key === 'repoStructure') {
+          value = formatRepoStructure(value); // Format repoStructure properly
+        }
+  
+        // Handle 'cloudInfrastructure' as an array, format accordingly
+        if (key === 'cloudInfrastructure') {
+          value = Array.isArray(value) && value.length > 0 ? value.join(', ') : '[]';
+        }
+  
+        // Format boolean values for readability
+        if (typeof value === 'boolean') {
+          value = value ? 'Yes' : 'No';
+        }
+  
+        return {
+          Parameter: camelCaseToReadable(key),
+          Value: Array.isArray(value) ? value.join(', ') : value
+        };
+      }
+      return null;
+    }).filter(item => item !== null);
+  
+    // Prepare final data for export
+    const finalData = [
+      ['Application Details'],  // First row: Header for Application Details
+      ['Repo URL', selectedRepo], // Repo URL
+      ['Service Name', selectedService], // Service Name
+  
+      [],  // Two-row gap
+  
+      ['Generated Assessment Data'], // Header for Assessment Data
+      ['Parameter', 'Value'], // Column headers for the tabular data
+  
+      // Tabular data for parameters and their values
+      ...transformedData.map(row => [row.Parameter, row.Value]),
+    ];
+  
+    // Create a new array for the artifact data with the added service name column
+    const artifactData = selectedServiceData.artifacts.map((artifact, index) => [
+      selectedService,  // Add Service Name column
+      `Artifact ${index + 1}`, // Artifact # (Artifact Name)
+      artifact.artifactName, // Artifact Name
+      artifact.artifactPath, // Artifact Path
+      artifact.category, // Artifact Category
+      artifact.artifactLocation // Artifact Location
+    ]);
+  
+    // Add headers for the artifact sheet, including the Service Name column
+    const artifactSheetData = [
+      ['Artifacts Information'],
+      ['Service Name', 'Artifact #', 'Artifact Name', 'Artifact Path', 'Category', 'Artifact Location'],
+      ...artifactData
+    ];
+  
+    // Create the worksheet for Assessment Data
+    const ws1 = XLSX.utils.aoa_to_sheet(finalData);
+  
+    // Apply bold styles to specific headers using xlsx-style
+    ws1['A1'].s = boldStyle; // "Application Details"
+    ws1['A2'].s = boldStyle; // "Repo URL"
+    ws1['A3'].s = boldStyle; // "Service Name"
+    ws1['A6'].s = boldStyle; // "Generated Assessment Data"
+    ws1['A7'].s = boldStyle; // "Parameter"
+    ws1['B7'].s = boldStyle; // "Value"
+  
+    // Create the worksheet for Artifact Data
+    const ws2 = XLSX.utils.aoa_to_sheet(artifactSheetData);
+  
+    // Apply bold styles to the artifact sheet headers
+    ws2['A1'].s = boldStyle; // "Artifacts Information"
+    ws2['A2'].s = boldStyle; // "Service Name"
+    ws2['B2'].s = boldStyle; // "Artifact #"
+    ws2['C2'].s = boldStyle; // "Artifact Name"
+    ws2['D2'].s = boldStyle; // "Artifact Path"
+    ws2['E2'].s = boldStyle; // "Category"
+    ws2['F2'].s = boldStyle; // "Artifact Location"
+  
+    // Create the workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws1, 'Assessment Data');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Artifact Data');
+  
+    // Trigger the file download
+    XLSX.writeFile(wb, 'assessment_data_with_artifacts.xlsx');
+  };
+  
+  
+  
 
 
 
@@ -198,18 +256,15 @@ const handleExportToExcel = async () => {
     const newRepo = event.target.value;
     setSelectedRepo(newRepo);  // Set the selected repo
   
-    // Reset the service selection when repo changes
-    setSelectedService(''); // This will clear the selected service
-  
-    // If there are services for the new repo, set the first service as the default
-    if (newRepo) {
-      const repoData = filterRepoData(newRepo);
-      const availableServices = Object.keys(repoData?.responseDetails || {});
-      if (availableServices.length > 0) {
-        setSelectedService(availableServices[0]); // Set default service to the first one in the list
-      }
-    }
+    // Reset service selection and table data when the repo changes
+    setSelectedService('');  // Reset the selected service
+    setServiceTableData(null);  // Clear the table data
   };
+  
+  
+  
+  
+  
   
 
   // Function to handle service selection from dropdown
@@ -366,43 +421,122 @@ const handleExportToExcel = async () => {
 
         {/* Display service parameters */}
         {selectedRepo && selectedService && serviceTableData && (
-          <div className="mt-4">
-            <h2>Assessment Data for {selectedService}</h2>
-            <table className="table table-bordered table-striped">
-              <thead>
-                <tr>
-                  <th>Parameter</th>
-                  <th>Value</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(serviceTableData).map(([key, value], index) => {
-                  if (key !== 'serviceName') {
-                    let formattedValue = value;
+  <div className="mt-4">
+    <h2>Assessment Data for {selectedService}</h2>
+    <table className="table table-bordered table-striped">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {Object.entries(serviceTableData).map(([key, value], index) => {
+          if (key === 'artifacts') {
+            // If key is 'artifacts', map through the artifacts and make them clickable
+            return (
+              <tr key={index}>
+                <td>{camelCaseToReadable(key)}</td>
+                <td>
+                  {Array.isArray(value) && value.length > 0 ? (
+                    value.map((artifact, artifactIndex) => (
+                      <div key={artifactIndex}>
+                        {/* Make the artifact name clickable */}
+                        <a
+                          href="#"
+                          onClick={(e) => {
+                            e.preventDefault(); // Prevent default link behavior
+                            handleArtifactClick(artifact); // Show artifact details
+                          }}
+                          style={{ cursor: 'pointer', color: 'blue' }}
+                        >
+                          {artifact.artifactName}
+                        </a>
+                      </div>
+                    ))
+                  ) : (
+                    'No Artifacts Found'
+                  )}
+                </td>
+              </tr>
+            );
+          } else {
+            // For other keys, handle them as usual
+            let formattedValue = value;
 
-                    // If the value is an object, convert it to a string (e.g., JSON.stringify)
-                    if (typeof value === 'object' && value !== null) {
-                      formattedValue = JSON.stringify(value, null, 2); // Beautify object output
-                    }
+            // If the value is an object, convert it to a string (e.g., JSON.stringify)
+            if (typeof value === 'object' && value !== null) {
+              formattedValue = JSON.stringify(value, null, 2); // Beautify object output
+            }
 
-                    // Format arrays for better display
-                    if (Array.isArray(value)) {
-                      formattedValue = value.join(', ');
-                    }
+            // Format arrays for better display
+            if (Array.isArray(value)) {
+              formattedValue = value.join(', ');
+            }
 
-                    return (
-                      <tr key={index}>
-                        <td>{camelCaseToReadable(key)}</td>
-                        <td>{formattedValue}</td>
-                      </tr>
-                    );
-                  }
-                  return null;
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+            return (
+              <tr key={index}>
+                <td>{camelCaseToReadable(key)}</td>
+                <td>{formattedValue}</td>
+              </tr>
+            );
+          }
+        })}
+      </tbody>
+    </table>
+  </div>
+)}
+
+{selectedArtifact && ( // Line 75
+  <div className="modal fade show" tabIndex="-1" aria-labelledby="artifactModalLabel" style={{ display: 'block' }}> 
+    <div className="modal-dialog modal-dialog-centered"> 
+      <div className="modal-content"> 
+        <div className="modal-header"> 
+          <h5 className="modal-title" id="artifactModalLabel">Artifact Details</h5> 
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+            onClick={() => setSelectedArtifact(null)} // Close the modal
+          ></button>
+        </div>
+        <div className="modal-body" style={{ maxHeight: '400px', overflowY: 'auto' }}> {/* Line 85 - Added overflowY and maxHeight */}
+          <table className="table table-striped"> 
+            <tbody> 
+              <tr> 
+                <th>Artifact Name</th> 
+                <td>{selectedArtifact.artifactName}</td> 
+              </tr> 
+              <tr> 
+                <th>Artifact Path</th> 
+                <td>{selectedArtifact.artifactPath}</td> 
+              </tr> 
+              <tr> 
+                <th>Category</th> 
+                <td>{selectedArtifact.category}</td> 
+              </tr> 
+              <tr> 
+                <th>Location</th> 
+                <td>{selectedArtifact.artifactLocation}</td> 
+              </tr> 
+            </tbody> 
+          </table>
+        </div> 
+        <div className="modal-footer"> 
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setSelectedArtifact(null)} // Close the modal
+          >
+            Close
+          </button> 
+        </div> 
+      </div> 
+    </div> 
+  </div>
+)}
+
 
       </div>
 
