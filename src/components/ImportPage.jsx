@@ -16,6 +16,7 @@ function ImportPage() {
   const [selectedArtifact, setSelectedArtifact] = useState(null); // Line 15
   const [showFolderStructure, setShowFolderStructure] = useState(false); // To control the folder structure modal visibility
 const [folderStructureData, setFolderStructureData] = useState([]); // To store the repoStructure data
+const [showTableModal, setShowTableModal] = useState(false);
 
   const handleArtifactClick = (artifact) => { // Line 40
     setSelectedArtifact(artifact); // Set the artifact details to display in modal (Line 41)
@@ -437,78 +438,113 @@ const [folderStructureData, setFolderStructureData] = useState([]); // To store 
 
         {/* Display service parameters */}
         {selectedRepo && selectedService && serviceTableData && (
-  <div className="mt-4">
-    <h2>Assessment Data for {selectedService}</h2>
-    <table className="table table-bordered table-striped">
-      <thead>
-        <tr>
-          <th>Parameter</th>
-          <th>Value</th>
-        </tr>
-      </thead>
-      <tbody>
-      {Object.entries(serviceTableData).map(([key, value], index) => {
-  if (key === 'artifacts') {
-    // Handle artifacts as before
-    return (
-      <tr key={index}>
-        <td>{camelCaseToReadable(key)}</td>
-        <td>
-          {Array.isArray(value) && value.length > 0 ? (
-            value.map((artifact, artifactIndex) => (
-              <div key={artifactIndex}>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleArtifactClick(artifact);
-                  }}
-                  style={{ cursor: 'pointer', color: 'blue' }}
-                >
-                  {artifact.artifactName}
-                </a>
-              </div>
-            ))
-          ) : (
-            'No Artifacts Found'
-          )}
-        </td>
-      </tr>
-    );
-  } else {
-    let formattedValue = value;
+  <div>
+    {/* Button to open the table in the modal */}
+    <button
+      className="btn btn-info mt-4"
+      onClick={() => setShowTableModal(true)} // Trigger the modal
+      style={{ padding: '10px 20px', fontSize: '16px' }}
+    >
+      View Assessment Data for {selectedService}
+    </button>
 
-    if (key === 'repoStructure') {
-      // Instead of showing the repoStructure, show the clickable link
-      formattedValue = (
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            handleFolderStructureClick(value); // Show the folder structure in modal
-          }}
-          style={{ cursor: 'pointer', color: 'blue' }}
-        >
-          Click here to view folder structure
-        </a>
-      );
-    }
+    {/* Modal for displaying the table */}
+    {showTableModal && (
+      <div className="modal fade show" tabIndex="-1" aria-labelledby="tableModalLabel" style={{ display: 'block' }}>
+        <div className="modal-dialog modal-lg">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="tableModalLabel">
+                Assessment Data for {selectedService}
+              </h5>
+              <button
+                type="button"
+                className="btn-close"
+                data-bs-dismiss="modal"
+                aria-label="Close"
+                onClick={() => setShowTableModal(false)} // Close the modal
+              ></button>
+            </div>
+            <div className="modal-body">
+              <table className="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(serviceTableData).map(([key, value], index) => {
+                    if (key === 'artifacts') {
+                      return (
+                        <tr key={index}>
+                          <td>{camelCaseToReadable(key)}</td>
+                          <td>
+                            {Array.isArray(value) && value.length > 0 ? (
+                              value.map((artifact, artifactIndex) => (
+                                <div key={artifactIndex}>
+                                  <a
+                                    href="#"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      handleArtifactClick(artifact); // Show artifact details in modal
+                                    }}
+                                    style={{ cursor: 'pointer', color: 'blue' }}
+                                  >
+                                    {artifact.artifactName}
+                                  </a>
+                                </div>
+                              ))
+                            ) : (
+                              'No Artifacts Found'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    } else {
+                      let formattedValue = value;
+                      if (key === 'repoStructure') {
+                        formattedValue = (
+                          <a
+                            href="#"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              handleFolderStructureClick(value); // Show folder structure in modal
+                            }}
+                            style={{ cursor: 'pointer', color: 'blue' }}
+                          >
+                            Click here to view folder structure
+                          </a>
+                        );
+                      }
 
-    // Other key handling...
-    return (
-      <tr key={index}>
-        <td>{camelCaseToReadable(key)}</td>
-        <td>{formattedValue}</td>
-      </tr>
-    );
-  }
-})}
-
-
-      </tbody>
-    </table>
+                      return (
+                        <tr key={index}>
+                          <td>{camelCaseToReadable(key)}</td>
+                          <td>{formattedValue}</td>
+                        </tr>
+                      );
+                    }
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-footer">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setShowTableModal(false)} // Close the modal
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
   </div>
 )}
+
 
 {selectedArtifact && ( // Line 75
   <div className="modal fade show" tabIndex="-1" aria-labelledby="artifactModalLabel" style={{ display: 'block' }}> 
